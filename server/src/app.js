@@ -11,8 +11,6 @@ import organizationCredentialRouter from "./routes/organizationCredits.routes.js
 import { errorHandler } from "./middlewares/error.middleware.js";
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
-import cors from "cors";
-import config from "./config/config.js";
 import { dynamicCors } from "./middlewares/widgetSession.middleware.js";
 import allowedOriginRouter from "./routes/allowedOrigin.routes.js";
 

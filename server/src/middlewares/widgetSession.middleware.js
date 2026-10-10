@@ -155,18 +155,19 @@ export const widgetCors = cors({
 export const dynamicCors = cors({
     origin: async (origin, callback) => {
         try {
-            // Allow requests without Origin
-            // Example: Postman / server-to-server requests
+            // Allow requests without an Origin header
             if (!origin) {
                 return callback(null, true);
             }
 
-            // Allow your dashboard frontend
-            if (origin === config.FRONTEND_URL) {
+            // Allow dashboard frontend
+            const frontendUrl = config.FRONTEND_URL?.replace(/\/$/, "");
+
+            if (origin === frontendUrl) {
                 return callback(null, true);
             }
 
-            // Check organization allowed origins
+            // Allow organization-approved origins
             const organization = await organizationModel.findOne({
                 allowedOrigins: origin,
             });
@@ -175,14 +176,10 @@ export const dynamicCors = cors({
                 return callback(null, true);
             }
 
-            return callback(
-                new Error("Origin not allowed by CORS")
-            );
-
+            return callback(new Error("Origin not allowed by CORS"));
         } catch (error) {
             return callback(error);
         }
     },
-
     credentials: true,
 });

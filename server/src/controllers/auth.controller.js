@@ -33,12 +33,14 @@ export const registerUser = async (req, res) => {
         const organization = await organizationModel.create({ organizationName, organizationWebsite, organizationEmail, organizationContactNumber });
         const newUser = await userModel.create({ name, email, password, contactNumber, role, organizationId: organization._id });
         const token = generateToken(newUser); // Generate token for the new user
-        res.cookie("jwt-token", token, {
+        const cookieOptions = {
             httpOnly: true,
             secure: config.NODE_ENV === "production",
-            sameSite: "strict",
-            maxAge: 7 * 24 * 60 * 60 * 1000
-        });
+            sameSite: config.NODE_ENV === "production" ? "none" : "lax",
+            path: "/",
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        };
+        res.cookie("jwt-token", token, cookieOptions);
         res.status(201).json({ message: "User registered successfully", user: { id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role, organizationId: newUser.organizationId } });
     } catch (error) {
         console.error("Error registering user:", error);
@@ -61,12 +63,14 @@ export const loginUser = async (req, res) => {
             return res.status(401).json({ message: "Invalid credentials" });
         }
         const token = generateToken(user); // Generate token for the logged-in user
-        res.cookie("jwt-token", token, {
+        const cookieOptions = {
             httpOnly: true,
             secure: config.NODE_ENV === "production",
-            sameSite: "strict",
-            maxAge: 7 * 24 * 60 * 60 * 1000
-        });
+            sameSite: config.NODE_ENV === "production" ? "none" : "lax",
+            path: "/",
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        };
+        res.cookie("jwt-token", token, cookieOptions);
         res.status(200).json({ message: "User logged in successfully", user: { id: user._id, name: user.name, email: user.email, role: user.role, organizationId: user.organizationId } });
     } catch (error) {
         console.error("Error logging in user:", error);
@@ -127,7 +131,12 @@ export const logoutUser = async (req, res) => {
             );
         }
 
-        res.clearCookie("jwt-token");
+        res.clearCookie("jwt-token", {
+            httpOnly: true,
+            secure: config.NODE_ENV === "production",
+            sameSite: config.NODE_ENV === "production" ? "none" : "lax",
+            path: "/",
+        });
 
         return res.status(200).json({
             message: "User logged out successfully"
