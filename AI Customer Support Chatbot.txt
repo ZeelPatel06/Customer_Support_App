@@ -1,0 +1,19 @@
+AI Customer Support Chatbot
+
+Tech Stack
+Frontend: ReactJS/NextJS, Shadcn UI
+Backend: FastAPI, Python
+Database: PostgreSQL, pgvector extension
+AI Layer: LLMs API
+Queue: Redis/Celery or RQ
+Storage: AWS S3 or Cloudflare R2
+Monitoring: Langsmith, Sentry
+
+Phase-1: MVP Customer Uploads Documents
+
+Sprint-1 Foundation:
+1. Project Setup
+2. PostgreSQL Schema
+3. Authentication
+4. Organization/user system
+5. Basic Dashboard

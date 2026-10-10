@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *)); 
+
+html,
+body,
+#root {
+    min-height: 100vh;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    @apply bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200;
+}

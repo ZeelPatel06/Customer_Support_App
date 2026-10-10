@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+__tests__/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment Variables (CRITICAL: Never commit secrets)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Server Logs & Storage
+logs/
+*.log
+npm-debug.log
+uploads/
+temp/
+tmp/
+
+# Build & Transpilation Outputs (TypeScript / Babel)
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Operating System & IDE Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing & Coverage
+coverage/
+.nyc_output/
+
+# Cache Directories
+.cache/
+.eslintcache
