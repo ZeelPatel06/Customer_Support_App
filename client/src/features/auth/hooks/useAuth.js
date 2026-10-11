@@ -11,12 +11,11 @@ export const useLogin = () => {
         mutationFn: loginUserApi,
         onSuccess: (data) => {
             queryClient.setQueryData(['authUser'], data);
-            navigate("/dashboard", { replace: true });
+            navigate("/profile", { replace: true });
         },
         onError: (err) => {
             const message = err?.response?.data?.message || 'Login failed. Please try again.';
             toast.error(message);
-
         }
     });
 };
@@ -31,7 +30,7 @@ export const useRegister = () => {
             try {
                 const { data } = await getMeApi();
                 queryClient.setQueryData(["authUser"], data);
-                navigate("/dashboard", { replace: true });
+                navigate("/profile", { replace: true });
             } catch (error) {
                 toast.error("Registration successful, but failed to load profile.");
             }
@@ -45,10 +44,13 @@ export const useRegister = () => {
 
 export const useAuthUser = () => {
     return useQuery({
-        queryKey: ['authUser'],
-        queryFn: getMeApi,
+        queryKey: ["authUser"],
+        queryFn: async () => {
+            const response = await getMeApi();
+            return response;
+        },
         retry: false,
-        staleTime: 1000 * 60 * 15, // Cache session data for 15 minutes to reduce unnecessary API calls
+        staleTime: 0,
         refetchOnWindowFocus: false,
     });
 };
