@@ -37,6 +37,8 @@
             : "https://customer-support-app-o39e.onrender.com/api/v1/chat";
 
     let sessionId = null;
+    let sessionPromise = null;
+    let connectionMessage = null;
 
     // =========================================================
     // CREATE WIDGET SESSION
@@ -89,6 +91,26 @@
                 message:
                     "Unable to connect to support right now.",
             };
+        }
+    };
+
+    const ensureWidgetSession = async () => {
+        // Reuse an existing session.
+        if (sessionId) {
+            return { success: true };
+        }
+
+        // Prevent multiple session-creation requests.
+        if (sessionPromise) {
+            return sessionPromise;
+        }
+
+        sessionPromise = createWidgetSession();
+
+        try {
+            return await sessionPromise;
+        } finally {
+            sessionPromise = null;
         }
     };
 
@@ -1464,69 +1486,118 @@
         // OPEN CHAT
         // =====================================================
 
-        elements.button.addEventListener(
-            "click",
-            async () => {
 
-                if (!sessionId) {
+        elements.button.addEventListener("click", async () => {
+            // Open the chat immediately.
+            elements.window.style.display = "grid";
 
-                    elements.button.disabled =
-                        true;
+            // Reuse an existing valid session.
+            if (sessionId) {
+                elements.input.disabled = false;
+                elements.send.disabled = false;
+                elements.input.placeholder = "Ask a question...";
+                elements.input.focus();
+                return;
+            }
 
+            // Avoid duplicate connection attempts.
+            if (sessionPromise) {
+                return;
+            }
 
-                    const sessionResult =
-                        await createWidgetSession();
+            // Disable sending until the session is ready.
+            elements.input.disabled = true;
+            elements.send.disabled = true;
+            elements.input.placeholder = "Connecting...";
 
+            // Remove an old connection message.
+            if (connectionMessage) {
+                connectionMessage.remove();
+                connectionMessage = null;
+            }
 
-                    elements.button.disabled =
-                        false;
+            const connectionMessages = [
+                "Getting your AI assistant ready...",
+                "Preparing your chat session...",
+                "Setting things up for you...",
+                "Almost ready to chat...",
+            ];
 
+            connectionMessage = addMessage(
+                elements.messages,
+                connectionMessages[0],
+                "bot"
+            );
 
-                    if (!sessionResult.success) {
+            let messageIndex = 0;
+            let connectionTimer = null;
 
-                        /*
-                         * Show error window.
-                         *
-                         * This uses block only for
-                         * the error state.
-                         */
+            const stopConnectionTimer = () => {
+                if (connectionTimer !== null) {
+                    clearInterval(connectionTimer);
+                    connectionTimer = null;
+                }
+            };
 
-                        elements.window.style.display =
-                            "block";
-
-
-                        showWidgetError(
-                            elements,
-                            sessionResult.message
-                        );
-
-                        return;
-                    }
+            // Update the same message every 7 seconds.
+            connectionTimer = setInterval(() => {
+                if (sessionId) {
+                    stopConnectionTimer();
+                    return;
                 }
 
+                messageIndex =
+                    (messageIndex + 1) % connectionMessages.length;
 
-                /*
-                 * IMPORTANT:
-                 *
-                 * Normal chat window uses GRID.
-                 *
-                 * This makes:
-                 *
-                 * HEADER
-                 * MESSAGES
-                 * INPUT
-                 *
-                 * stay in their correct positions.
-                 */
+                if (connectionMessage) {
+                    connectionMessage.textContent =
+                        connectionMessages[messageIndex];
+                }
+            }, 7000);
 
-                elements.window.style.display =
-                    "grid";
+            try {
+                const sessionResult = await ensureWidgetSession();
 
+                // Never claim success unless the API succeeded
+                // and returned a valid session ID.
+                if (!sessionResult?.success || !sessionId) {
+                    throw new Error(
+                        sessionResult?.message ||
+                        "The server did not create a valid session."
+                    );
+                }
 
+                stopConnectionTimer();
+
+                if (connectionMessage) {
+                    connectionMessage.textContent =
+                        "You're connected! How can I help you?";
+                }
+
+                elements.input.disabled = false;
+                elements.send.disabled = false;
+                elements.input.placeholder = "Ask a question...";
                 elements.input.focus();
-            }
-        );
 
+            } catch (error) {
+                stopConnectionTimer();
+
+                // Ensure failed sessions cannot appear connected.
+                sessionId = null;
+
+                if (connectionMessage) {
+                    connectionMessage.textContent =
+                        "We couldn't connect to the assistant. Please try again.";
+                }
+
+                elements.input.disabled = true;
+                elements.send.disabled = true;
+                elements.input.placeholder =
+                    "Close and reopen chat to retry";
+
+                console.error("Widget connection failed:", error);
+            }
+        });
 
         // =====================================================
         // CLOSE CHAT
@@ -1588,17 +1659,6 @@
                     sendMessage(elements);
                 }
             }
-        );
-
-
-        // =====================================================
-        // INITIAL GREETING
-        // =====================================================
-
-        addMessage(
-            elements.messages,
-            "Hi! I'm CusSup. How can I help you?",
-            "bot"
         );
     };
 

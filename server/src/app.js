@@ -24,6 +24,13 @@ app.use(cookieParser());
 app.use(morgan("dev"));
 app.use(dynamicCors);
 
+app.get("/", (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: "Backend is running"
+    });
+});
+
 app.get("/health", (req, res) => {
     res.status(200).json({
         success: true,

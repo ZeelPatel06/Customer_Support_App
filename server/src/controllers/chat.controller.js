@@ -85,6 +85,10 @@ export const clearChat = async (req, res) => {
 };
 
 export const createWidgetSession = async (req, res) => {
+    // This is for render deploy testing in localhost.
+    // const delay = (ms) =>
+    // new Promise((resolve) => setTimeout(resolve, ms));
+    // await delay(60_000);
     try {
         const {
             publicKey,
