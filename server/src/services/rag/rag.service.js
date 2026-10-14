@@ -9,14 +9,78 @@ import {
 
 import { rewriteQuery } from "./queryRewrite.service.js";
 
+import { getWebsiteFallback } from "../scraping/websiteFallback.service.js";
+import { generateWebsiteAnswer } from "../scraping/websiteAnswer.service.js";
 
 const FALLBACK_MESSAGE =
     "I don't have enough information to answer that. OR Please once ask same question after Clear on top.";
+
+
+// ==========================================
+// Website fallback helper
+// ==========================================
+
+const answerFromWebsite = async ({
+    question,
+    organizationId,
+    pageUrl,
+    pageText,
+}) => {
+    try {
+        if (!pageUrl) {
+            return null;
+        }
+
+        const websiteContent = await getWebsiteFallback({
+            question,
+            pageUrl,
+            pageText,
+            organizationId,
+        });
+
+        if (!websiteContent?.text?.trim()) {
+            return null;
+        }
+
+        const webAnswer = await generateWebsiteAnswer({
+            question,
+            websiteContent,
+        });
+
+        if (
+            !webAnswer ||
+            webAnswer
+                .trim()
+                .startsWith(
+                    "I don't have enough information to answer that."
+                )
+        ) {
+            return null;
+        }
+
+        return webAnswer;
+
+    } catch (error) {
+        console.error(
+            "Website answer generation error:",
+            error.message
+        );
+
+        return null;
+    }
+};
+
+
+// ==========================================
+// Main RAG service
+// ==========================================
 
 export const generateRAGAnswer = async ({
     question,
     organizationId,
     conversationId,
+    pageUrl,
+    pageText,
 }) => {
     try {
         // ==========================================
@@ -35,209 +99,141 @@ export const generateRAGAnswer = async ({
             throw new Error("Conversation ID is required");
         }
 
+        const normalizedQuestion = question.trim();
+
         // ==========================================
         // 2. Get conversation context
         // ==========================================
 
         const conversationContext =
-            await getConversationContext(
-                conversationId
-            );
+            await getConversationContext(conversationId);
 
         // ==========================================
-        // 3. Rewrite query
+        // 3. Try current webpage first
         // ==========================================
 
-        const searchQuery = await rewriteQuery({
-            question,
-            conversationContext,
-        });
+        let answer = null;
 
-        console.log(
-            "Original question:",
-            question
-        );
+        const hasCurrentPage =
+            typeof pageUrl === "string" &&
+            pageUrl.trim().length > 0 &&
+            typeof pageText === "string" &&
+            pageText.trim().length > 0;
 
-        console.log(
-            "Conversation context:",
-            conversationContext
-        );
+        if (hasCurrentPage) {
+            console.log("[Chat] Trying current webpage");
 
-        console.log(
-            "Rewritten query:",
-            searchQuery
-        );
-
-        console.log(
-            "RAG organizationId:",
-            organizationId
-        );
-
-        // ==========================================
-        // 4. Vector search
-        // ==========================================
-
-        const results = await searchKnowledge({
-            query: searchQuery,
-            organizationId,
-            limit: 3,
-        });
-
-        console.log(
-            "\n[RAG] Retrieved results:",
-            results.length
-        );
-
-        // ==========================================
-        // 5. No knowledge found
-        // ==========================================
-
-        if (!results.length) {
-            console.log(
-                "[RAG] No relevant knowledge found."
-            );
-
-            await addMessageToContext(
-                conversationId,
-                "user",
-                question.trim()
-            );
-
-            await addMessageToContext(
-                conversationId,
-                "assistant",
-                FALLBACK_MESSAGE
-            );
-
-            return FALLBACK_MESSAGE;
+            answer = await answerFromWebsite({
+                question: normalizedQuestion,
+                organizationId,
+                pageUrl,
+                pageText,
+            });
         }
 
         // ==========================================
-        // 6. Build knowledge context
+        // 4. If webpage cannot answer, search MongoDB
         // ==========================================
 
-        // ==========================================
-        // 6. Check knowledge relevance
-        // ==========================================
+        if (!answer) {
+            console.log("[Chat] Searching MongoDB knowledge");
 
-        const relevantChunks =
-            await checkKnowledgeRelevance({
-                question: question.trim(),
-                knowledgeChunks: results,
+            const searchQuery = await rewriteQuery({
+                question: normalizedQuestion,
+                conversationContext,
             });
 
-        console.log(
-            "\n[RAG] Relevant chunks:",
-            relevantChunks.length
-        );
+            console.log("[DEBUG] Original question:", normalizedQuestion);
+            console.log("[DEBUG] Rewritten query:", searchQuery);
+            console.log("[DEBUG] Organization ID:", organizationId);
 
-        if (!relevantChunks.length) {
+            const results = await searchKnowledge({
+                query: searchQuery,
+                organizationId,
+                limit: 3,
+            });
 
+            console.log("[DEBUG] Retrieved chunks:", results.length);
             console.log(
-                "[RAG] Retrieved knowledge was not relevant."
+                "[DEBUG] Retrieved content:",
+                results.map((chunk) => chunk.content)
             );
 
-            await addMessageToContext(
-                conversationId,
-                "user",
-                question.trim()
+            let relevantChunks = [];
+
+            if (results.length > 0) {
+                relevantChunks = await checkKnowledgeRelevance({
+                    question: normalizedQuestion,
+                    knowledgeChunks: results,
+                });
+            }
+
+            console.log("[DEBUG] Relevant chunks:", relevantChunks.length);
+            console.log(
+                "[DEBUG] Relevant content:",
+                relevantChunks.map((chunk) => chunk.content)
             );
 
-            await addMessageToContext(
-                conversationId,
-                "assistant",
-                FALLBACK_MESSAGE
-            );
+            if (relevantChunks.length > 0) {
+                const knowledgeContext = relevantChunks
+                    .map((chunk) => chunk.content)
+                    .join("\n\n");
 
-            return FALLBACK_MESSAGE;
-        }
+                const systemPrompt = `
+You are a customer support assistant.
 
-        // ==========================================
-        // 7. Build relevant knowledge context
-        // ==========================================
-
-        const knowledgeContext =
-            relevantChunks
-                .map((chunk) => chunk.content)
-                .join("\n\n");
-
-        console.log(
-            "\n========== RELEVANT KNOWLEDGE =========="
-        );
-
-        console.log(knowledgeContext);
-
-        console.log(
-            "=========================================\n"
-        );
-
-
-        // ==========================================
-        // 9. Generate grounded answer
-        // ==========================================
-
-        const systemPrompt = `
-You are a knowledge-based customer support assistant.
-
-Answer the user's question using ONLY the INFORMATION provided by the application.
+Answer using ONLY the supplied knowledge-base information.
 
 Rules:
-- Understand the meaning of the question.
-- Different wording, grammar, or question style is allowed.
-- Answer directly from the information.
-- You may summarize or rephrase information without changing its meaning.
-- Do not add facts, assumptions, opinions, or general knowledge.
-- Preserve important conditions, qualifications, numbers, dates, names, prices, and restrictions.
-- Do not treat one condition as another condition.
-- If the information does not contain enough evidence to answer the question, return exactly:
-
-I don't have enough information to answer that. OR Please once ask same question after Clear on top.
-
+- Answer directly and accurately.
+- Do not invent facts or use outside knowledge.
+- Preserve names, numbers, dates, and conditions.
+- If the information is insufficient, return exactly:
+${FALLBACK_MESSAGE}
 - Return only the answer.
 `;
 
-        const userPrompt = `
-INFORMATION:
+                const userPrompt = `
+KNOWLEDGE BASE:
 ${knowledgeContext}
 
 QUESTION:
-${question.trim()}
+${normalizedQuestion}
 `;
 
-        // ==========================================
-        // 10. LLM answer generation
-        // ==========================================
+                const response = await generateLLMResponse({
+                    systemPrompt,
+                    userPrompt,
+                });
 
-        const response = await generateLLMResponse({
-            systemPrompt,
-            userPrompt,
-        });
-        // ==========================================
-        // 12. Extract answer
-        // ==========================================
+                const ragAnswer = response?.answer?.trim();
 
-        const answer =
-            response?.answer?.trim() ||
-            FALLBACK_MESSAGE;
-
-        console.log(
-            "\n========== RAW LLM RESPONSE =========="
-        );
-
-        console.log(answer);
-
-        console.log(
-            "=======================================\n"
-        );
+                if (
+                    ragAnswer &&
+                    !ragAnswer.startsWith(
+                        "I don't have enough information to answer that."
+                    )
+                ) {
+                    answer = ragAnswer;
+                }
+            }
+        }
 
         // ==========================================
-        // 13. Save conversation
+        // 5. Final fallback
+        // ==========================================
+
+        if (!answer) {
+            answer = FALLBACK_MESSAGE;
+        }
+        // ==========================================
+        // 9. Save conversation once
         // ==========================================
 
         await addMessageToContext(
             conversationId,
             "user",
-            question.trim()
+            normalizedQuestion
         );
 
         await addMessageToContext(
@@ -247,7 +243,7 @@ ${question.trim()}
         );
 
         // ==========================================
-        // 14. Return answer
+        // 10. Return final answer
         // ==========================================
 
         return answer;

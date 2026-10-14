@@ -31,7 +31,10 @@
     // Keep this as your current backend URL.
     // Change it to your Render URL when deploying.
     const API_BASE_URL =
-        "https://customer-support-app-o39e.onrender.com/api/v1/chat";
+        window.location.hostname === "localhost" ||
+            window.location.hostname === "127.0.0.1"
+            ? "http://localhost:5000/api/v1/chat"
+            : "https://customer-support-app-o39e.onrender.com/api/v1/chat";
 
     let sessionId = null;
 
@@ -1361,6 +1364,8 @@
 
                         body: JSON.stringify({
                             message,
+                            pageUrl: window.location.href,
+                            pageText: document.body.innerText.trim()
                         }),
                     }
                 );
@@ -1402,6 +1407,7 @@
 
                             body: JSON.stringify({
                                 message,
+                                pageUrl: window.location.href,
                             }),
                         }
                     );

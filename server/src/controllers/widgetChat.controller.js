@@ -3,16 +3,20 @@ import { createNewWidgetConversationService } from "../services/credentials/widg
 
 export const widgetChatController = async (req, res) => {
     try {
-        const { message } = req.body;
+        const { message, pageUrl, pageText } = req.body;
+
         if (!message) {
             return res.status(400).json({
                 message: "Message is required",
             });
         }
+
         const answer = await generateRAGAnswer({
             question: message,
             organizationId: req.organizationId,
             conversationId: req.conversationId,
+            pageUrl,
+            pageText
         });
 
         return res.status(200).json({
@@ -23,21 +27,25 @@ export const widgetChatController = async (req, res) => {
         });
     } catch (err) {
         console.error("Widget chat error", err);
+
         if (err.message === "Question is required") {
             return res.status(400).json({
                 message: err.message,
             });
         }
+
         if (err.message === "Organization ID is required") {
             return res.status(401).json({
-                message: "Invalid widget session"
+                message: "Invalid widget session",
             });
         }
+
         if (err.message === "Conversation ID is required") {
             return res.status(400).json({
                 message: err.message,
-            })
+            });
         }
+
         return res.status(500).json({
             message: "Error processing chat request",
         });
