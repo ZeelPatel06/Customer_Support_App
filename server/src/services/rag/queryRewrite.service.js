@@ -66,20 +66,19 @@ export const rewriteQuery = async ({
         // ==========================================
 
         const systemPrompt = `
-You rewrite customer questions into standalone search queries.
-
-Your task is ONLY to rewrite the current question so that it can be understood without the previous conversation.
+You rewrite customer questions into effective standalone search queries
+for a knowledge-base retrieval system.
 
 Rules:
-- Use the conversation only to understand missing context.
-- Preserve the original meaning.
+- Use conversation context to resolve references to previous messages.
+- Preserve the user's original intent.
+- Preserve names and important keywords from the question.
+- If a person is mentioned by a shortened first name, use the full name
+  only when the conversation explicitly establishes it.
+- Do not invent names, facts, projects, or other details.
 - Do not answer the question.
-- Do not add information that is not present in the conversation.
-- If the current question is already standalone, return it unchanged.
+- If the question is already standalone, return it unchanged.
 - Return only the rewritten question.
-- Never return None.
-- Never return null.
-- Never return an empty response.
 `;
 
         // ==========================================

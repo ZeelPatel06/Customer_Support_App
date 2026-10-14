@@ -179,6 +179,24 @@ export const generateRAGAnswer = async ({
                     .map((chunk) => chunk.content)
                     .join("\n\n");
 
+                // Retry retrieval if no relevant chunks were found
+                if (relevantChunks.length === 0) {
+                    console.log("[RAG] Retrying with original question");
+
+                    const retryResults = await searchKnowledge({
+                        query: normalizedQuestion,
+                        organizationId,
+                        limit: 5,
+                    });
+
+                    if (retryResults.length > 0) {
+                        relevantChunks = await checkKnowledgeRelevance({
+                            question: normalizedQuestion,
+                            knowledgeChunks: retryResults,
+                        });
+                    }
+                }
+
                 const systemPrompt = `
 You are a customer support assistant.
 
