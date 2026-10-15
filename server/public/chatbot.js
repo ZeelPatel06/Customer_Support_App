@@ -28,6 +28,30 @@
         return;
     }
 
+    const DEFAULT_PRIMARY_COLOR = "#6366f1";
+    const DEFAULT_SECONDARY_COLOR = "#7c3aed";
+
+    const getValidColor = (value, fallback) => {
+        if (
+            typeof value === "string" &&
+            /^#[0-9a-fA-F]{6}$/.test(value)
+        ) {
+            return value;
+        }
+
+        return fallback;
+    };
+
+    const primaryColor = getValidColor(
+        script.dataset.primaryColor,
+        DEFAULT_PRIMARY_COLOR
+    );
+
+    const secondaryColor = getValidColor(
+        script.dataset.secondaryColor,
+        DEFAULT_SECONDARY_COLOR
+    );
+
     // Keep this as your current backend URL.
     // Change it to your Render URL when deploying.
     const API_BASE_URL =
@@ -120,6 +144,16 @@
 
     const createWidgetUI = () => {
         const container = document.createElement("div");
+
+        container.style.setProperty(
+            "--cus-sup-primary",
+            primaryColor
+        );
+
+        container.style.setProperty(
+            "--cus-sup-secondary",
+            secondaryColor
+        );
 
         container.innerHTML = `
             <div id="ai-chatbot-widget">
@@ -335,12 +369,11 @@
 
                 color: white;
 
-                background:
-                    linear-gradient(
-                        135deg,
-                        #6366f1,
-                        #8b5cf6
-                    );
+                background: linear-gradient(
+        135deg,
+        var(--cus-sup-primary),
+        var(--cus-sup-secondary)
+    );
 
                 box-shadow:
                     0 10px 30px rgba(99, 102, 241, 0.35),
@@ -481,12 +514,11 @@
 
                 color: white;
 
-                background:
-                    linear-gradient(
-                        135deg,
-                        #4f46e5,
-                        #7c3aed
-                    );
+                background: linear-gradient(
+        135deg,
+        var(--cus-sup-primary),
+        var(--cus-sup-secondary)
+    );
 
                 box-sizing: border-box;
             }
@@ -783,12 +815,11 @@
 
                 color: white;
 
-                background:
-                    linear-gradient(
-                        135deg,
-                        #6366f1,
-                        #7c3aed
-                    );
+                background: linear-gradient(
+        135deg,
+        var(--cus-sup-primary),
+        var(--cus-sup-secondary)
+    );
 
                 border-bottom-right-radius: 5px;
 
@@ -891,7 +922,7 @@
             #ai-chatbot-input:focus {
                 background: #ffffff;
 
-                border-color: #6366f1;
+                border-color: var(--cus-sup-primary);
 
                 box-shadow:
                     0 0 0 3px
@@ -926,12 +957,11 @@
 
                 font-weight: 600;
 
-                background:
-                    linear-gradient(
-                        135deg,
-                        #6366f1,
-                        #7c3aed
-                    );
+                background: linear-gradient(
+        135deg,
+        var(--cus-sup-primary),
+        var(--cus-sup-secondary)
+    );
 
                 transition:
                     transform 0.2s ease,
@@ -1520,6 +1550,9 @@
                 "Getting your AI assistant ready...",
                 "Preparing your chat session...",
                 "Setting things up for you...",
+                "It is taking more time than expected...",
+                "We really appreciate your patience...",
+                "Final connection checks...",
                 "Almost ready to chat...",
             ];
 
@@ -1553,7 +1586,7 @@
                     connectionMessage.textContent =
                         connectionMessages[messageIndex];
                 }
-            }, 7000);
+            }, 10000);
 
             try {
                 const sessionResult = await ensureWidgetSession();

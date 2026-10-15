@@ -205,7 +205,9 @@ const ChabotWidgetCard = () => {
     const embedCode = publicKey
         ? `<script
     src="http://localhost:5000/chatbot.js"
-    data-public-key="${publicKey}">
+    data-public-key="${publicKey}"
+    data-primary-color="YOUR_WEBSITE_PRIMARY_COLOR",
+    data-secondary-color="YOUR_WEBSITE_SECONDARY_COLOR">
 </script>`
         : "";
 
